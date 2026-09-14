@@ -27,8 +27,9 @@ final class ReservationCoordinator: ObservableObject {
         self.bookingProvider = bookingProvider
         self.store = store
         self.notifier = notifier
-        self.attempts = store.loadAttempts()
-        self.duplicateGuard = DuplicateGuard(existingAttempts: attempts)
+        let loadedAttempts = store.loadAttempts()
+        self.attempts = loadedAttempts
+        self.duplicateGuard = DuplicateGuard(existingAttempts: loadedAttempts)
         self.seenEntryIDs = Set(store.loadSeenEntryIDs())
     }
 
