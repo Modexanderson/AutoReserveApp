@@ -12,6 +12,7 @@ final class LocalStore {
         static let conditions = "autoreserve.conditions"
         static let seenEntryIDs = "autoreserve.seenEntryIDs"
         static let attempts = "autoreserve.attempts"
+        static let contact = "autoreserve.contact"
     }
 
     init(defaults: UserDefaults = .standard) {
@@ -48,6 +49,14 @@ final class LocalStore {
 
     func saveAttempts(_ attempts: [ReservationAttempt]) {
         encode(attempts, forKey: Keys.attempts)
+    }
+
+    func loadContact() -> ContactInfo {
+        decode(ContactInfo.self, forKey: Keys.contact) ?? ContactInfo()
+    }
+
+    func saveContact(_ contact: ContactInfo) {
+        encode(contact, forKey: Keys.contact)
     }
 
     private func encode<T: Encodable>(_ value: T, forKey key: String) {

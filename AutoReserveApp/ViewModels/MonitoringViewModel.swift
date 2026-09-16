@@ -12,11 +12,18 @@ final class MonitoringViewModel: ObservableObject {
     let coordinator: ReservationCoordinator
     private let targetVM: TargetSettingsViewModel
     private let conditionsVM: ConditionsViewModel
+    private let contactVM: ContactSettingsViewModel
 
-    init(coordinator: ReservationCoordinator, targetVM: TargetSettingsViewModel, conditionsVM: ConditionsViewModel) {
+    init(
+        coordinator: ReservationCoordinator,
+        targetVM: TargetSettingsViewModel,
+        conditionsVM: ConditionsViewModel,
+        contactVM: ContactSettingsViewModel
+    ) {
         self.coordinator = coordinator
         self.targetVM = targetVM
         self.conditionsVM = conditionsVM
+        self.contactVM = contactVM
     }
 
     func start() {
@@ -24,7 +31,11 @@ final class MonitoringViewModel: ObservableObject {
         isMonitoring = true
         timerTask = Task {
             while !Task.isCancelled && isMonitoring {
-                await coordinator.runCheckCycle(cast: targetVM.cast, conditions: conditionsVM.conditions)
+                await coordinator.runCheckCycle(
+                    cast: targetVM.cast,
+                    conditions: conditionsVM.conditions,
+                    contact: contactVM.contact
+                )
                 try? await Task.sleep(nanoseconds: UInt64(intervalSeconds * 1_000_000_000))
             }
         }

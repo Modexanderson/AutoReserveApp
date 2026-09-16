@@ -3,6 +3,7 @@ import SwiftUI
 struct RootTabView: View {
     @StateObject private var targetVM: TargetSettingsViewModel
     @StateObject private var conditionsVM: ConditionsViewModel
+    @StateObject private var contactVM: ContactSettingsViewModel
     @StateObject private var coordinator: ReservationCoordinator
     @StateObject private var monitoringVM: MonitoringViewModel
 
@@ -10,10 +11,20 @@ struct RootTabView: View {
         let store = LocalStore()
         let target = TargetSettingsViewModel(store: store)
         let conditions = ConditionsViewModel(store: store)
+        let contact = ContactSettingsViewModel(store: store)
 
-        // Wired to the mock providers today. Swap these two lines for
-        // HTMLScheduleProvider / HTMLBookingProvider once Phase 0 research
-        // is complete and those two files have real implementations.
+        // Currently wired to the mock providers so the app is always
+        // demoable. To run against the REAL site (confirmed real
+        // endpoints — see WebViewScheduleProvider.swift and
+        // URLSessionBookingProvider.swift for exactly what's been
+        // verified vs. what still needs the contact-info field mapping):
+        //
+        //   let coord = ReservationCoordinator(
+        //       scheduleProvider: WebViewScheduleProvider(),
+        //       bookingProvider: URLSessionBookingProvider(),
+        //       store: store,
+        //       notifier: NotificationManager()
+        //   )
         let coord = ReservationCoordinator(
             scheduleProvider: MockScheduleProvider(),
             bookingProvider: MockBookingProvider(),
@@ -23,8 +34,11 @@ struct RootTabView: View {
 
         _targetVM = StateObject(wrappedValue: target)
         _conditionsVM = StateObject(wrappedValue: conditions)
+        _contactVM = StateObject(wrappedValue: contact)
         _coordinator = StateObject(wrappedValue: coord)
-        _monitoringVM = StateObject(wrappedValue: MonitoringViewModel(coordinator: coord, targetVM: target, conditionsVM: conditions))
+        _monitoringVM = StateObject(wrappedValue: MonitoringViewModel(
+            coordinator: coord, targetVM: target, conditionsVM: conditions, contactVM: contact
+        ))
     }
 
     var body: some View {
@@ -34,6 +48,9 @@ struct RootTabView: View {
 
             NavigationStack { ConditionsSettingsView(viewModel: conditionsVM) }
                 .tabItem { Label("Conditions", systemImage: "slider.horizontal.3") }
+
+            NavigationStack { ContactSettingsView(viewModel: contactVM) }
+                .tabItem { Label("Contact", systemImage: "person.text.rectangle") }
 
             NavigationStack { MonitoringView(viewModel: monitoringVM, coordinator: coordinator) }
                 .tabItem { Label("Monitor", systemImage: "eye") }

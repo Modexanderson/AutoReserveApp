@@ -53,6 +53,14 @@ struct ReservationCondition: Identifiable, Codable, Equatable {
         if let earliestTime, entry.startTime < earliestTime { return false }
         if let latestTime, entry.startTime > latestTime { return false }
 
+        // NOTE: the real calendar page carries no per-slot course info —
+        // only availability status (see SlotStatus). Course matching here
+        // only fires against mock/test data that sets `course` on the
+        // entry; against the real site, the desired course is applied
+        // later at the booking step (URLSessionBookingProvider reads it
+        // from THIS condition, not from the entry). So a course
+        // preference here doesn't gate which real slots get attempted —
+        // it just determines which course gets selected once one does.
         if let course, let entryCourse = entry.course, course != entryCourse {
             return false
         }

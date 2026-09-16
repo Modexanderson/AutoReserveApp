@@ -27,9 +27,8 @@ final class ReservationCoordinator: ObservableObject {
         self.bookingProvider = bookingProvider
         self.store = store
         self.notifier = notifier
-        let loadedAttempts = store.loadAttempts()
-        self.attempts = loadedAttempts
-        self.duplicateGuard = DuplicateGuard(existingAttempts: loadedAttempts)
+        self.attempts = store.loadAttempts()
+        self.duplicateGuard = DuplicateGuard(existingAttempts: attempts)
         self.seenEntryIDs = Set(store.loadSeenEntryIDs())
     }
 
@@ -37,7 +36,11 @@ final class ReservationCoordinator: ObservableObject {
     /// foreground timer, or from a background refresh task if/when iOS
     /// actually grants one (see BackgroundCoordinator for why that can't
     /// be guaranteed to happen on any particular schedule).
-    func runCheckCycle(cast: Cast, conditions: [ReservationCondition]) async {
+    ///
+    /// `contact` is required because a real submission (booking OR
+    /// cancellation-waitlist request) needs it filled into the site's
+    /// guest-checkout form — see Views/ContactSettingsView.
+    func runCheckCycle(cast: Cast, conditions: [ReservationCondition], contact: ContactInfo) async {
         status.state = .running
         do {
             let entries = try await scheduleProvider.fetchSchedule(for: cast)
@@ -47,7 +50,7 @@ final class ReservationCoordinator: ObservableObject {
             let newEntries = entries.filter { !seenEntryIDs.contains($0.id) }
             for entry in newEntries {
                 seenEntryIDs.insert(entry.id)
-                await handle(newEntry: entry, cast: cast, conditions: conditions)
+                await handle(newEntry: entry, cast: cast, conditions: conditions, contact: contact)
             }
             store.saveSeenEntryIDs(Array(seenEntryIDs))
             status.state = .idle
@@ -62,7 +65,7 @@ final class ReservationCoordinator: ObservableObject {
         }
     }
 
-    private func handle(newEntry entry: ScheduleEntry, cast: Cast, conditions: [ReservationCondition]) async {
+    private func handle(newEntry entry: ScheduleEntry, cast: Cast, conditions: [ReservationCondition], contact: ContactInfo) async {
         guard let condition = matcher.firstMatch(for: entry, in: conditions) else {
             recordAttempt(entry: entry, conditionID: nil, priority: nil, outcome: .skippedNoMatch, message: "No condition matched this slot.")
             return
@@ -76,12 +79,13 @@ final class ReservationCoordinator: ObservableObject {
         duplicateGuard.markAttempted(entryID: entry.id, conditionID: condition.id)
 
         do {
-            let confirmation = try await bookingProvider.book(entry: entry, for: cast)
+            let confirmation = try await bookingProvider.book(entry: entry, condition: condition, for: cast, contact: contact)
             // Only ever treated as success once the provider itself has
             // verified a real confirmation — never on transport success
             // alone (development guide, sections 8 & 10).
             recordAttempt(entry: entry, conditionID: condition.id, priority: condition.priority, outcome: .succeeded, message: confirmation)
-            notifier.notify(title: "Booking confirmed", body: "\(cast.name) — \(entry.date.formatted(date: .abbreviated, time: .omitted)) \(entry.startTime)")
+            let label = entry.status == .waitlist ? "Waitlist request sent" : "Booking confirmed"
+            notifier.notify(title: label, body: "\(cast.name) — \(entry.date.formatted(date: .abbreviated, time: .omitted)) \(entry.startTime)")
         } catch {
             recordAttempt(entry: entry, conditionID: condition.id, priority: condition.priority, outcome: .failed, message: error.localizedDescription)
             notifier.notify(title: "Booking failed", body: error.localizedDescription)

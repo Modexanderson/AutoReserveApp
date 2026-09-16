@@ -22,6 +22,8 @@ struct TargetSettingsView: View {
                 ))
                 .keyboardType(.URL)
                 .textInputAutocapitalization(.never)
+                TextField("Girl ID (site-internal, e.g. 55983930)", text: $viewModel.cast.girlID)
+                    .keyboardType(.numberPad)
             }
             Section("Notes") {
                 TextField("Notes", text: Binding(
